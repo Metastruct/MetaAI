@@ -35,7 +35,7 @@ const context = await model.createContext();
 
 // Add this function to free sequences
 async function recreateContext() {
-    await context.free();
+    await context.dispose();
     return await model.createContext();
 }
 
