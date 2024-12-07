@@ -33,6 +33,12 @@ const model = await llama.loadModel({
 });
 const context = await model.createContext();
 
+// Add this function to free sequences
+async function recreateContext() {
+    await context.free();
+    return await model.createContext();
+}
+
 // Helper function to format chat messages
 function formatChatMessage(nick, msg) {
     return `<${nick.replace(/[\p\c]/g, '').replace(/ +/g, '_').toLowerCase()}> ${msg}`;
@@ -70,8 +76,21 @@ app.post('/chat', async (req, res) => {
         const randomPrompt = PROMPTS[Math.floor(Math.random() * PROMPTS.length)];
         const systemPrompt = `${INTRODUCTION} ${randomPrompt}`;
 
+        let contextSequence;
+        try {
+            contextSequence = context.getSequence();
+        } catch (error) {
+            if (error.message === 'No sequences left') {
+                // Recreate context if we run out of sequences
+                await recreateContext();
+                contextSequence = context.getSequence();
+            } else {
+                throw error;
+            }
+        }
+
         const session = new LlamaChatSession({
-            contextSequence: context.getSequence(),
+            contextSequence: contextSequence,
             systemPrompt: systemPrompt
         });
 
