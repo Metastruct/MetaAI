@@ -36,7 +36,8 @@ const context = await model.createContext();
 // Add this function to free sequences
 async function recreateContext() {
     await context.dispose();
-    return await model.createContext();
+    context = await model.createContext();
+    return context;
 }
 
 // Helper function to format chat messages
@@ -80,9 +81,9 @@ app.post('/chat', async (req, res) => {
         try {
             contextSequence = context.getSequence();
         } catch (error) {
-            if (error.message === 'No sequences left') {
-                // Recreate context if we run out of sequences
-                await recreateContext();
+            if (error.message === 'No sequences left' || error.message.includes('disposed')) {
+                // Recreate context if we run out of sequences or if it's disposed
+                context = await recreateContext();
                 contextSequence = context.getSequence();
             } else {
                 throw error;
