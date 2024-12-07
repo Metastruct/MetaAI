@@ -31,9 +31,9 @@ const llama = await getLlama();
 const model = await llama.loadModel({
     modelPath: path.join("models", "meta-llama-3.1-8b-instruct-q4_k_m.gguf"),
 });
-const context = await model.createContext();
 
 // Add this function to free sequences
+let context = await model.createContext();
 async function recreateContext() {
     await context.dispose();
     context = await model.createContext();
