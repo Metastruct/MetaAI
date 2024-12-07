@@ -33,16 +33,20 @@ const model = await llama.loadModel({
 });
 
 // Add this function to free sequences
-let context = await model.createContext();
+let context = await model.createContext({
+    sequencesCount: 2048  // Increase this number based on your needs
+});
 async function recreateContext() {
     await context.dispose();
-    context = await model.createContext();
+    context = await model.createContext({
+        sequencesCount: 2048  // Use the same value here
+    });
     return context;
 }
 
 // Helper function to format chat messages
 function formatChatMessage(nick, msg) {
-    return `<${nick.replace(/[\p\c]/g, '').replace(/ +/g, '_').toLowerCase()}> ${msg}`;
+    return `<${nick.replace(/[\p\c]/g, '').replace(/ +/g, '_').toLowerCase()}>: ${msg}`;
 }
 
 app.post('/chat', async (req, res) => {
@@ -92,7 +96,7 @@ app.post('/chat', async (req, res) => {
 
         const session = new LlamaChatSession({
             contextSequence: contextSequence,
-            systemPrompt: systemPrompt
+            systemPrompt: systemPrompt,
         });
 
         // Generate response
@@ -100,11 +104,10 @@ app.post('/chat', async (req, res) => {
 
         // Process response
         let cleanResponse = response
-            .toLowerCase()
             .replace(/"/g, '')
             .trim()
             .replace(/metaai/g, 'MetaAI')
-            .split('\n')[0];
+            .replace(/<metaai>/g, '');
 
         // Update context
         const newContext = userContexts[userId];
@@ -114,21 +117,6 @@ app.post('/chat', async (req, res) => {
 
         newContext.push(formattedInput);
         newContext.push(formatChatMessage('metaai', cleanResponse));
-
-        // Check for repetition
-        let repeated = 0;
-        for (let i = Math.floor(newContext.length / 2); i >= 1; i--) {
-            if (newContext[newContext.length - 1] === newContext[i * 2]) {
-                repeated++;
-            }
-        }
-
-        if (repeated >= STUCK_THRESHOLD) {
-            cleanResponse = "...i'm repeating myself, ain't i? forgetting everything...";
-            userContexts[userId] = [];
-        } else {
-            userContexts[userId] = newContext;
-        }
 
         // Set cooldown
         userCooldowns[userId] = now + COOLDOWN_TIME;
